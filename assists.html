@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <!-- Load d3.js -->
+  <script src = "https://d3js.org/d3.v5.min.js"></script>
+  <!-- Load d3-annotation -->
+  <script src="https://rawgit.com/susielu/d3-annotation/master/d3-annotation.min.js"></script>
+
+      <title>Playoff Data</title>
+
+  <style>
+  body {
+    font-family: Helvetica;
+    color: grey;
+  }
+  .chart rect {}
+  #tooltip {
+    visibility: hidden;
+    position: fixed;
+    text-align: center;
+    width: 60px; height: 40px;
+    background: white;
+    border: solid;
+    pointer-events: none;
+  }
+  </style>
+
+</head>
+<body onload ='init()'>
+  <p>
+    <label for="#selectButton">  Filter Players by Team Name </label><br />
+    <select id="selectButton"><option value="">All teams</option></select>
+  </p>
+  <svg id="Apm" class="chart" width = 600 height = 600>
+  </svg>
+
+  <div id = "tooltip" ></div>
+  <script>
+  async function init() {
+
+    const data = await d3.csv("https://dcloveuiuc.github.io/bball_data.csv");
+
+    var allGroup = d3.map(data, function(d){return(d.Tm)}).keys()
+    var selectedTeam = '';
+
+    var tooltip = d3.select('#tooltip');
+    var teams = ["TOR", "MEM", "MIA", "UTA", "MIL", "NOP", "PHO", "DEN", "PHI", "MIN", "DAL", "GSW", "ATL", "CHI", "BRK", "BOS"]
+    var margin = {top: 50, right: 50, bottom: 50, left: 50},
+    width = 600 - margin.left - margin.right,
+    height = 600 - margin.top - margin.bottom;
+    var svg = d3.select("#Apm")
+      .append("svg")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom)
+      .append("g")
+        .attr("transform",
+          "translate(" + margin.left  + "," + margin.top + ")");
+
+    xs = d3.scaleLinear().domain([0,50]).range([0,500]);
+    ys = d3.scaleLinear().domain([0,10]).range([500,0]);
+    cs = d3.scaleOrdinal().domain(teams).range(d3.schemeAccent);
+
+
+    d3.select("svg")
+      .append('g')
+      .attr("transform", "translate(50,50)")
+      .append("text")
+      .attr("x", (width / 2))
+      .attr("y", 0 - (margin.top / 2))
+      .attr("text-anchor", "middle")
+      .style("font-size", "16px")
+      .style("font-family", "Helvetica")
+      .style("color", "grey")
+      .style("text-decoration", "underline")
+      .text("NBA 2022 Playoffs: Assists vs. Minutes Played")
+      ;
+
+    d3.select('svg')
+      .append('g')
+      .attr("transform", "translate(50,50)")
+      .selectAll("circle").data(data).enter().append("circle")
+      .attr("cx", function(d, i){return xs(d.MP);})
+      .attr("cy", function(d, i){return ys(d.AST);})
+      .attr("r", 4)
+      .attr("fill", function(d){return cs(d.Tm);})
+      .style("stroke", "black")
+      .on("mouseover", function(d,i) {
+        var visibility = selectedTeam == d.Tm || selectedTeam == '' ? 'visible' : 'hidden';
+        tooltip.transition()
+        .duration(500);
+        tooltip.style("visibility", visibility)
+          .style("left",(d3.event.pageX)+"px")
+          .style("top",(d3.event.pageY)+"px")
+          .style("opacity", 1)
+          .html(d.Player);
+        })
+        .on("mouseout", function() {
+          tooltip.transition()
+          .duration(500);
+          tooltip.style("visibility", "hidden");
+         });
+
+    d3.select('svg')
+      .append('g')
+      .attr("transform", "translate(50,50)")
+      .call(d3.axisLeft(ys));
+
+    d3.select('svg')
+      .append('g')
+      .attr("transform", "translate(50,550)")
+      .call(d3.axisBottom(xs));
+
+  // Features of the annotation
+  const annotations = [
+    {
+      note: {
+        label: "Assists / Min",
+        title: "Avg Line",
+        align: "right"
+      },
+      x: 50,
+      y: 550,
+      dy: -ys(5.4),
+      dx: 520
+    }
+  ];
+
+  // Add annotation to the chart
+  const makeAnnotations = d3.annotation()
+    .annotations(annotations)
+  d3.select("svg")
+    .append("g")
+    .call(makeAnnotations);
+
+
+  // Add Team Dropdown Button
+  d3.select("#selectButton")
+    .selectAll('myOptions')
+      .data(allGroup)
+      .enter()
+    .append('option')
+    .text(function (d) { return d; }) // text showed in the menu
+    .attr("value", function (d) { return d; }); // corresponding value returned by the button
+
+  function update(selectedGroup) {
+
+      // Give these new data to update line
+      selectedTeam = selectedGroup;
+      d3.select("svg")
+        .selectAll("circle")
+        .data(data)
+        .transition()
+        .duration(1000)
+          .attr("cx", function(d) { return xs(d.MP) })
+          .attr("cy", function(d) { return ys(d.AST) })
+          .attr("opacity", function(d) {
+            return (d.Tm == selectedGroup || selectedGroup == '') ? 1: 0;
+          })
+};
+
+  // When the button is changed, run the updateChart function
+  d3.select("#selectButton").on("change", function(d) {
+      // recover the option that has been chosen
+      var selectedOption = d3.select(this).property("value")
+      // run the updateChart function with this selected option
+      update(selectedOption)
+  });
+
+
+};
+</script>
+</body>
+</html>
